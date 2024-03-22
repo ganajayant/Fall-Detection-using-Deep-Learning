@@ -9,12 +9,12 @@ const Header = () => {
       <div className="header">
         <Link to={'/'}>
           <div className="logo">
-            <span>A</span>ttendance <span>T</span>racking <span>S</span>ystem
+            <span>F</span>all <span>D</span>etection <span>S</span>ystem
           </div>
         </Link>
         <ul className="navbar">
           <li className="nav-item">
-            <a href="/dashboard">Sheet</a>
+            <a href="/">home</a>
           </li>
         </ul>
       </div>

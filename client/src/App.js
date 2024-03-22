@@ -9,7 +9,7 @@ function App() {
   return <BrowserRouter>
     <NavBar></NavBar>
     <Routes>
-      <Route exact path="/dashboard" element={<Data />} />
+      <Route exact path="/" element={<Data />} />
       <Route exact path="*" element={<NotFound />} />
     </Routes>
   </BrowserRouter>;

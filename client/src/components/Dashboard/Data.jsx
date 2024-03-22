@@ -1,138 +1,151 @@
 import axios from 'axios';
-import { saveAs } from 'file-saver';
+import Chart from 'chart.js/auto';
 import React, { useEffect, useState } from 'react';
+import { Bar, Line } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 
+
 import Loading from '../Loading/Loading';
-import './Data.css';
 
 const Data = () => {
     const [data, setData] = useState([]);
+    const [accidentsPerDate, setAccidentsPerDate] = useState(null);
+    const [accidentsPerLocation, setAccidentsPerLocation] = useState(null);
     const [loading, setLoading] = useState(true);
+    Chart.defaults.font.size = 16;
     useEffect(() => {
-        axios.get(process.env.REACT_APP_URL + '/getdata')
+        axios
+            .get(process.env.REACT_APP_URL + '/falls')
             .then((response) => {
                 setData(response.data);
+                const accidentsByDate = {};
+                const accidentsByLocation = {};
+                data.forEach((accident) => {
+                    const date = accident.accident_time.split(' ')[0];
+                    if (accidentsByDate[date]) {
+                        accidentsByDate[date]++;
+                    } else {
+                        accidentsByDate[date] = 1;
+                    }
+
+                    const location = `Lat: ${accident.latitude.toFixed(2)}, Long: ${accident.longitude.toFixed(2)}`;
+                    if (accidentsByLocation[location]) {
+                        accidentsByLocation[location]++;
+                    } else {
+                        accidentsByLocation[location] = 1;
+                    }
+                });
+                const dateLabels = Object.keys(accidentsByDate);
+                const dateValues = Object.values(accidentsByDate);
+                const dateChartData = {
+                    labels: dateLabels,
+                    datasets: [
+                        {
+                            label: 'Number of Accidents',
+                            data: dateValues,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                };
+
+                const locationLabels = Object.keys(accidentsByLocation);
+                const locationValues = Object.values(accidentsByLocation);
+                const locationChartData = {
+                    labels: locationLabels,
+                    datasets: [
+                        {
+                            label: 'Number of Accidents',
+                            data: locationValues,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                };
+
+                setAccidentsPerDate(dateChartData);
+                setAccidentsPerLocation(locationChartData);
                 setLoading(false);
             })
             .catch((error) => {
                 console.error('Error fetching data: ', error);
             });
-    }, []);
-
-    // Function to export data as Excel
-    const exportToExcel = () => {
-        const wsData = data?.data?.map((item) => [item.id, ...item.dates]);
-        const ws = XLSX.utils.aoa_to_sheet([['ID\\Date', ...data?.unique_dates], ...wsData]);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Data');
-        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(blob, 'attendance.xlsx');
+    }, [data]);
+    const handleDownloadExcel = () => {
+        const workbook = XLSX.utils.book_new();
+        const accidentsSheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, accidentsSheet, 'Accidents');
+        const excelBuffer = XLSX.write(workbook, {
+            bookType: 'xlsx',
+            type: 'array',
+        });
+        saveAsExcelFile(excelBuffer, 'accidents.xlsx');
     };
 
-    // Function to calculate total absents for each student
-    const calculateTotalStudentAbsents = (studentIndex) => {
-        return data?.data[studentIndex]?.dates.reduce((total, item) => {
-            return total + (item ? 0 : 1);
-        }, 0);
+    const saveAsExcelFile = (buffer, filename) => {
+        const data = new Blob([buffer], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
-
-
-    const Less = async () => {
-        try {
-            await axios.post(process.env.REACT_APP_URL + '/sendmaillees');
-            alert('mail sent');
-        }
-        catch (err) {
-            console.log(err);
-        }
-    };
-
-    const All = async () => {
-        try {
-            await axios.post(process.env.REACT_APP_URL + '/sendmailall');
-            alert('mail sent');
-        }
-        catch (err) {
-            console.log(err);
-        }
-    };
-
-    // Calculate total presents for each date
-    const calculateTotalDatePresents = (dateIndex) => {
-        return data?.data.reduce((total, student) => {
-            return total + (student?.dates[dateIndex] ? 1 : 0);
-        }, 0);
-    };
-
     return (
-        loading ? <Loading /> :
-            <div className='data'>
-                <div className='buttons-div'>
-
-                    <button className='btn' onClick={exportToExcel} style={{
-                        // center the button
-                        margin: '0 auto',
-                        display: 'block',
-                        marginTop: '20px',
-                    }}> Export to Excel</button>
-                    <button className='btn' onClick={All} style={{
-                        // center the button
-                        margin: '0 auto',
-                        display: 'block',
-                        marginTop: '20px',
-                    }}>Mail all</button>
-                    <button className='btn' onClick={Less} style={{
-                        // center the button
-                        margin: '0 auto',
-                        display: 'block',
-                        marginTop: '20px',
-                    }}> Mail less than 85%</button>
-                </div>
-                <table className='data-table'>
-                    <thead>
-                        <tr>
-                            <th key={-1}>
-                                ID \ Date
-                            </th>
-                            {
-                                data?.unique_dates?.map((item, index) => (
-                                    <th key={index}>{item}</th>
-                                ))
-                            }
-                            <th>Total Absents</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {
-                            data?.data?.map((item, studentIndex) => {
-                                return (
-                                    <tr key={studentIndex}>
-                                        <td key={-1}>{item?.id}</td>
-                                        {
-                                            item?.dates?.map((item, dateIndex) => (
-                                                <td key={dateIndex}>{item ? 'P' : 'A'}</td>
-                                            ))
-                                        }
-                                        <td>{calculateTotalStudentAbsents(studentIndex)}</td>
-                                    </tr>
-                                );
-                            })
-                        }
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td key={-1}>Total Presents</td>
-                            {
-                                data?.unique_dates?.map((item, dateIndex) => (
-                                    <td key={dateIndex}>{calculateTotalDatePresents(dateIndex)}</td>
-                                ))
-                            }
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+        <div>
+            {loading ? (
+                <Loading />
+            ) : <div>
+                <button onClick={handleDownloadExcel} style={{
+                    display: 'block',
+                    margin: 'auto',
+                    marginBottom: '20px',
+                }}>Download Excel</button>
+                <h1 style={{
+                    textAlign: 'center',
+                    marginTop: '20px',
+                    marginBottom: '20px',
+                }}>Number of Accidents per Date</h1>
+                {accidentsPerDate && (
+                    <Line
+                        data={accidentsPerDate}
+                        options={{
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    stepSize: 1,
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    stepSize: 1,
+                                },
+                            },
+                        }}
+                    />
+                )}
+                <h1 style={{
+                    textAlign: 'center',
+                    marginTop: '20px',
+                    marginBottom: '20px',
+                }}>Number of Accidents per Location</h1>
+                {accidentsPerLocation && (
+                    <Bar
+                        data={accidentsPerLocation}
+                        options={{
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    stepSize: 1,
+                                },
+                            },
+                        }}
+                    />
+                )}
+            </div>}
+        </div>
     );
 };
 
