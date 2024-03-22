@@ -1,0 +1,7 @@
+Subscriber/db/database.db
+Subscriber/.env
+Processed
+KFall
+.DS_Store
+venv
+__pycache__
