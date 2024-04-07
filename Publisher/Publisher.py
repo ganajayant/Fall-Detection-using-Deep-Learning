@@ -75,14 +75,15 @@ while True:
         continue
     print("\n Gx=%.3f °/s\tGy=%.3f °/s\tGz=%.3f °/s\tAx=%.3f g\tAy=%.3f g\tAz=%.3f g\n",
           Gx, Gy, Gz, Ax, Ay, Az)
-
     data = {
         "accelerometer_x": Ax,
         "accelerometer_y": Ay,
         "accelerometer_z": Az,
         "gyroscope_x": Gx,
         "gyroscope_y": Gy,
-        "gyroscope_z": Gz
+        "gyroscope_z": Gz,
+        "lat": 13.555541400652805,
+        "longi": 80.02680962057917,
     }
     payload = json.dumps(data)
 

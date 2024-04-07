@@ -42,7 +42,6 @@ def send_mailer(sender, body, subject="Alert there is a fall"):
             server.login(gmail_user, gmail_app_password)
             message = f"Subject: {subject}\n\n{body}"
             server.sendmail(send_from, sender, message)
-        print('Email sent!')
     except smtplib.SMTPAuthenticationError:
         print("Error: SMTP authentication failed! Please check your credentials.")
     except smtplib.SMTPException as e:
@@ -61,21 +60,25 @@ with pika.BlockingConnection(params) as connection:
         gx = x['gyroscope_x']
         gy = x['gyroscope_y']
         gz = x['gyroscope_z']
+        lat = x['lat']
+        longi = x['longi']
         test = pd.DataFrame([[ax, ay, az, gx, gy, gz]], columns=[
                             'Ax', 'Ay', 'Az', 'Gx', 'Gy', 'Gz'])
         y_pred = np.argmax(model.predict(test), axis=-1)
         prediction = indextolabel(y_pred)
-        print(f"Prediction: {prediction}")
         if prediction == "Fall":
+            print(f"Prediction: {prediction}")
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO Accidents(accelerometer_x, accelerometer_y, accelerometer_z, gyroscope_x, gyroscope_y, gyroscope_z, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (ax, ay, az, gx, gy, gz, 0, 0))
+                "INSERT INTO Accidents(accelerometer_x, accelerometer_y, accelerometer_z, gyroscope_x, gyroscope_y, gyroscope_z, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (ax, ay, az, gx, gy, gz, lat, longi))
             conn.commit()
             cursor.close()
             conn.close()
+            location = f"https://www.google.com/maps/search/?api=1&query={
+                lat:.6f},{longi:.6f}"
             send_mailer("ganajayant.s20@iiits.in",
-                        f"Fall detected with accelerometer values: {ax}, {ay}, {az} and gyroscope values: {gx}, {gy}, {gz}")
+                        f"Fall detected with accelerometer values: {ax}, {ay}, {az} and gyroscope values: {gx}, {gy}, {gz} at location {location} ")
     channel.basic_consume(queue="sensor_data_queue",
                           on_message_callback=callback, auto_ack=True)
 
