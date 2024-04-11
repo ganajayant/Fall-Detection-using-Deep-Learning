@@ -11,6 +11,7 @@ import pandas as pd
 import pika
 from dotenv import load_dotenv
 from keras.models import load_model
+import threading
 
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
@@ -75,10 +76,15 @@ with pika.BlockingConnection(params) as connection:
             conn.commit()
             cursor.close()
             conn.close()
-            location = f"https://www.google.com/maps/search/?api=1&query={
-                lat:.6f},{longi:.6f}"
-            send_mailer("ganajayant.s20@iiits.in",
-                        f"Fall detected with accelerometer values: {ax}, {ay}, {az} and gyroscope values: {gx}, {gy}, {gz} at location {location} ")
+            location = "https://www.google.com/maps/search/?api=1&query=" + \
+                str(lat) + "," + str(longi)
+
+            def send_email_thread():
+                send_mailer("ganajayant.s20@iiits.in",
+                            f"Fall detected with accelerometer values: {ax}, {ay}, {az} and gyroscope values: {gx}, {gy}, {gz} at location {location}")
+
+            email_thread = threading.Thread(target=send_email_thread)
+            email_thread.start()
     channel.basic_consume(queue="sensor_data_queue",
                           on_message_callback=callback, auto_ack=True)
 
