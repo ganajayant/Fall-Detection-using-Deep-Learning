@@ -46,9 +46,9 @@ def MPU_Init():
 
 def read_raw_data(addr):
     high = bus.read_byte_data(DEVICE_ADDRESS, addr)
-    low = bus.read_byte_data(DEVICE_ADDRESS, addr+1)
-    value = ((high << 8) | low)
-    if (value > 32768):
+    low = bus.read_byte_data(DEVICE_ADDRESS, addr + 1)
+    value = (high << 8) | low
+    if value > 32768:
         value = value - 65536
     return value
 
@@ -73,8 +73,15 @@ while True:
 
     if None in [Ax, Ay, Az, Gx, Gy, Gz]:
         continue
-    print("\n Gx=%.3f °/s\tGy=%.3f °/s\tGz=%.3f °/s\tAx=%.3f g\tAy=%.3f g\tAz=%.3f g\n",
-          Gx, Gy, Gz, Ax, Ay, Az)
+    print(
+        "\n Gx=%.3f °/s\tGy=%.3f °/s\tGz=%.3f °/s\tAx=%.3f g\tAy=%.3f g\tAz=%.3f g\n",
+        Gx,
+        Gy,
+        Gz,
+        Ax,
+        Ay,
+        Az,
+    )
     data = {
         "accelerometer_x": Ax,
         "accelerometer_y": Ay,
@@ -88,8 +95,7 @@ while True:
     payload = json.dumps(data)
 
     try:
-        channel.basic_publish(exchange="sensor_data",
-                              routing_key="", body=payload)
+        channel.basic_publish(exchange="sensor_data", routing_key="", body=payload)
         print("Data published to the sensor_data exchange")
     except pika.exceptions.AMQPError as e:
         print("Error publishing data to RabbitMQ:", str(e))

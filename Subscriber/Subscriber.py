@@ -4,6 +4,7 @@ import json
 import os
 import smtplib
 import sqlite3
+import threading
 from os.path import dirname, join
 
 import numpy as np
@@ -11,9 +12,8 @@ import pandas as pd
 import pika
 from dotenv import load_dotenv
 from keras.models import load_model
-import threading
 
-dotenv_path = join(dirname(__file__), '.env')
+dotenv_path = join(dirname(__file__), ".env")
 load_dotenv(dotenv_path)
 
 
@@ -26,11 +26,11 @@ send_from = os.environ.get("EMAIL")
 
 
 def indextolabel(index):
-    label = ['Stand', 'Fall', 'On Floor']
+    label = ["Stand", "Fall", "On Floor"]
     return label[index[0]]
 
 
-def get_db_connection(dir='db/database.db'):
+def get_db_connection(dir="db/database.db"):
     conn = sqlite3.connect(dir)
     conn.row_factory = sqlite3.Row
     return conn
@@ -38,7 +38,7 @@ def get_db_connection(dir='db/database.db'):
 
 def send_mailer(sender, body, subject="Alert there is a fall"):
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.ehlo()
             server.login(gmail_user, gmail_app_password)
             message = f"Subject: {subject}\n\n{body}"
@@ -55,16 +55,17 @@ with pika.BlockingConnection(params) as connection:
 
     def callback(ch, method, properties, body):
         x = json.loads(body)
-        ax = x['accelerometer_x']
-        ay = x['accelerometer_y']
-        az = x['accelerometer_z']
-        gx = x['gyroscope_x']
-        gy = x['gyroscope_y']
-        gz = x['gyroscope_z']
-        lat = x['lat']
-        longi = x['longi']
-        test = pd.DataFrame([[ax, ay, az, gx, gy, gz]], columns=[
-                            'Ax', 'Ay', 'Az', 'Gx', 'Gy', 'Gz'])
+        ax = x["accelerometer_x"]
+        ay = x["accelerometer_y"]
+        az = x["accelerometer_z"]
+        gx = x["gyroscope_x"]
+        gy = x["gyroscope_y"]
+        gz = x["gyroscope_z"]
+        lat = x["lat"]
+        longi = x["longi"]
+        test = pd.DataFrame(
+            [[ax, ay, az, gx, gy, gz]], columns=["Ax", "Ay", "Az", "Gx", "Gy", "Gz"]
+        )
         y_pred = np.argmax(model.predict(test), axis=-1)
         prediction = indextolabel(y_pred)
         if prediction == "Fall":
@@ -72,21 +73,31 @@ with pika.BlockingConnection(params) as connection:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO Accidents(accelerometer_x, accelerometer_y, accelerometer_z, gyroscope_x, gyroscope_y, gyroscope_z, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (ax, ay, az, gx, gy, gz, lat, longi))
+                "INSERT INTO Accidents(accelerometer_x, accelerometer_y, accelerometer_z, gyroscope_x, gyroscope_y, gyroscope_z, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (ax, ay, az, gx, gy, gz, lat, longi),
+            )
             conn.commit()
             cursor.close()
             conn.close()
-            location = "https://www.google.com/maps/search/?api=1&query=" + \
-                str(lat) + "," + str(longi)
+            location = (
+                "https://www.google.com/maps/search/?api=1&query="
+                + str(lat)
+                + ","
+                + str(longi)
+            )
 
             def send_email_thread():
-                send_mailer("ganajayant.s20@iiits.in",
-                            f"Fall detected with accelerometer values: {ax}, {ay}, {az} and gyroscope values: {gx}, {gy}, {gz} at location {location}")
+                send_mailer(
+                    "ganajayant.s20@iiits.in",
+                    f"Fall detected with accelerometer values: {ax}, {ay}, {az} and gyroscope values: {gx}, {gy}, {gz} at location {location}",
+                )
 
             email_thread = threading.Thread(target=send_email_thread)
             email_thread.start()
-    channel.basic_consume(queue="sensor_data_queue",
-                          on_message_callback=callback, auto_ack=True)
+
+    channel.basic_consume(
+        queue="sensor_data_queue", on_message_callback=callback, auto_ack=True
+    )
 
     print("Waiting for messages...")
     channel.start_consuming()
